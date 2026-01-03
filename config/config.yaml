@@ -1,0 +1,81 @@
+# Trudy Telegram Note-Taking System Configuration
+
+telegram:
+  bot_token: "${TELEGRAM_BOT_TOKEN}"  # Set in .env file
+  api_url: "https://api.telegram.org"
+  timeout: 30
+  retry_attempts: 3
+
+# Configure users who will send messages to the bot (OPTIONAL)
+#
+# AUTO-DISCOVERY MODE (Recommended):
+# Leave this section empty ([]) and users will be automatically discovered
+# when they send messages to your bot. Usernames will be generated from
+# their Telegram username or name.
+#
+# MANUAL MODE (Optional):
+# Explicitly configure users here if you want to control usernames.
+# To get chat_id: Send a message to your bot, then visit:
+# https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates
+#
+# For auto-discovery, use:
+users: []
+#
+# For manual configuration, use:
+# users:
+#   - username: "john_doe"  # Used for folder organization
+#     phone: "+1234567890"  # Optional
+#     chat_id: 123456789    # Your actual chat ID
+#   - username: "jane_doe"
+#     phone: "+0987654321"
+#     chat_id: 987654321
+
+storage:
+  base_dir: "./data"
+  notes_subdir: "notes"
+  media_subdir: "media"
+
+transcription:
+  enabled: true
+  provider: "ollama"  # Options: ollama, remote
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "whisper"
+    timeout: 300
+  youtube_prefer_transcript: true  # Try YouTube transcript API before downloading
+
+summarization:
+  enabled: true
+  provider: "ollama"  # Options: ollama, claude
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "llama2"  # Options: llama2, mistral, phi, etc.
+    temperature: 0.7
+    max_tokens: 500
+  claude:
+    cli_path: "claude"  # Path to Claude Code CLI executable
+    model: "claude-sonnet-4-5"
+    max_tokens: 1000
+  prompts:
+    video_summary: "Summarize the key points from this video transcript in 3-5 bullet points."
+    audio_summary: "Summarize the main topics discussed in this audio recording."
+    article_summary: "Provide a concise summary of this article in 2-3 paragraphs."
+    youtube_summary: "Summarize this YouTube video, highlighting key takeaways."
+
+processing:
+  max_concurrent: 3  # Max number of parallel processing tasks
+  skip_errors: true  # Continue processing if individual messages fail
+  retry_failed: true  # Retry failed operations
+
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
+  file: "./logs/trudy.log"
+  error_file: "./logs/errors.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+
+markdown:
+  timezone: "UTC"  # Your local timezone (e.g., "America/New_York", "Europe/London")
+  timestamp_format: "HH:MM"
+  include_message_id: false  # Include Telegram message ID as HTML comment
+  wikilink_style: "obsidian"  # Options: obsidian, standard
