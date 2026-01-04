@@ -51,6 +51,8 @@ data/
         └── media/                 # Same media files (symlinks or references)
 ```
 
+Abhinav : In the above storage structure, you can use the same media folder for both staging and processed. 
+
 **Staging Markdown Format** (Simple, raw from API):
 ```markdown
 ## 14:30
@@ -87,6 +89,8 @@ Voice message
 
 Check out this article: https://example.com/article
 ```
+
+Abhinav : The staging markdown file should be more simple here. In the header itself, add the verbatim text if available. 
 
 #### Phase 2: Processing
 **Purpose**: Process staged messages and generate enriched markdown
@@ -321,6 +325,10 @@ tags:
 
 ---
 ```
+
+
+Abhinav : I agree with the above format. Make sure that you are adding verbatim message in the headers so that it is easy to track. Additionally make the staging area markdown very simple. 
+
 
 **Key Metadata Fields by Type**:
 
@@ -606,6 +614,8 @@ logging:
 - **Option C**: Configurable retention (e.g., keep for 7 days)
 
 **Recommendation**: Option C with configurable retention for debugging and reprocessing needs.
+Abhinav : I agree with the above recommendation.
+
 
 ### 2. Reprocessing Strategy
 **Question**: When reprocessing messages, should we:
@@ -614,6 +624,7 @@ logging:
 - **Option C**: Prompt user to confirm reprocessing
 
 **Recommendation**: Option A by default, Option B with --reprocess flag, skip prompts (automation-friendly).
+Abhinav : I agree with the above recommendation.
 
 ### 3. Media File Handling
 **Question**: For media files in processed area, should we:
@@ -622,6 +633,7 @@ logging:
 - **Option C**: Keep only in staging, reference from processed markdown
 
 **Recommendation**: Option C to avoid duplication, use relative paths in markdown.
+Abhinav : Create in a separate folder called media. staging and processed area should have only the markdown files. The media files should be stored in the common media folder.
 
 ### 4. Post-Processing Markdown Format
 **Question**: For the enhanced markdown format, should we use:
@@ -646,6 +658,7 @@ logging:
 - **Option D**: Custom format optimized for Obsidian readability
 
 **Recommendation**: Option B for better readability in Obsidian preview mode, easier to edit manually.
+Abhinav : I agree with the above recommendation.
 
 ### 5. Automatic Tagging Strategy
 **Question**: How should automatic tags be generated?
@@ -654,6 +667,7 @@ logging:
 - **Option C**: Hybrid (rules + AI, configurable)
 
 **Recommendation**: Option C - rules for common patterns (fast), AI for content analysis (optional).
+Abhinav : I agree with the above recommendation.
 
 ### 6. Backward Compatibility
 **Question**: Should we maintain backward compatibility with old data structure?
@@ -662,6 +676,7 @@ logging:
 - **Option C**: Read-only compatibility (can read old, but write new)
 
 **Recommendation**: Option B with a comprehensive migration command (`trudy migrate`).
+Abhinav : You dont need to maintain any backward compatibility. Infact you can delete the old data structure. We also dont need to migrate the current data. Consider this as a fresh repo. 
 
 ### 7. Processing State Granularity
 **Question**: Should processing state track:
@@ -670,6 +685,7 @@ logging:
 - **Option C**: Per-day (processed dates only)
 
 **Recommendation**: Option A - per-file tracking with checksums, good balance of granularity and performance.
+Abhinav : Explain this again. 
 
 ### 8. Error Handling in Two-Phase System
 **Question**: If processing fails for a message, should we:
@@ -678,6 +694,7 @@ logging:
 - **Option C**: Move to separate error directory
 
 **Recommendation**: Option A - keep in staging with error tracking in state, allow reprocessing.
+Abhinav : I agree with the above recommendation.
 
 ### 9. YouTube Transcript Format
 **Question**: Should YouTube transcripts be:
@@ -686,6 +703,7 @@ logging:
 - **Option C**: Both (file + summary in markdown)
 
 **Recommendation**: Option C - full transcript in file for reference, timestamped summary in markdown for readability.
+Abhinav : I agree with the above recommendation.
 
 ### 10. CLI Command Grouping
 **Question**: Should we organize commands as:
@@ -694,10 +712,12 @@ logging:
 - **Option C**: Hybrid (common commands flat, utilities grouped)
 
 **Recommendation**: Option A - flat structure is simpler and more intuitive for daily use.
+Abhinav : I agree with the above recommendation.
 
 ---
 
 ## Migration Strategy
+Abhinav : This is not required. We have not run Trudy yet. We dont need to implement any migration strategy. Dont include any migration code. 
 
 ### For Existing Users
 
@@ -728,6 +748,7 @@ trudy status --format json
 ```
 
 ### Post-Migration Workflow
+Abhinav : This is not required. We have not run Trudy yet. We dont need to implement any migration strategy. Dont include any migration code. 
 
 **Old Workflow**:
 ```bash
@@ -768,12 +789,15 @@ trudy process             # Process staged messages
 
 ## Risk Assessment
 
+
 ### High Risk
 - **State management complexity**: Two separate states (fetch + process) could lead to sync issues
   - Mitigation: Comprehensive state validation and recovery mechanisms
 
 - **Data migration**: Risk of data loss during migration from old to new structure
   - Mitigation: Mandatory backup step, validation checks, rollback capability
+Abhinav : Dont worry about data migration. Please give suggestion on state management and how it should be handled. Should we have two different state files? 
+
 
 ### Medium Risk
 - **Markdown format parsing**: Complex YAML-style format could be fragile
@@ -785,6 +809,7 @@ trudy process             # Process staged messages
 ### Low Risk
 - **CLI UX**: Users need to learn new commands
   - Mitigation: Comprehensive documentation, backward-compatible sync command
+Abhinav : Dont worry about this. Users will learn new commands till the time there is proper documentation of the tool. 
 
 ---
 
@@ -793,26 +818,39 @@ trudy process             # Process staged messages
 Before proceeding with implementation, please clarify:
 
 1. **Staging retention policy** - How long should we keep staging files? (Options A/B/C above)
+Abhinav : Answered above 
 
 2. **Markdown format preference** - Do you prefer YAML frontmatter, indented YAML blocks, or another format for post-processing markdown? (See question 4 above)
+Abhinav : Answered above 
 
 3. **Media file handling** - Should media files be symlinked, copied, or referenced from staging? (See question 3 above)
+Abhinav : Answered above 
 
 4. **Automatic tagging** - Do you want rule-based, AI-based, or hybrid tagging? Any specific tags or patterns you'd like to auto-generate?
+Abhinav : Answered above 
 
 5. **OCR requirements** - Which OCR provider should we use? Tesseract (local, free) or cloud OCR (better quality, costs money)?
+Abhinav : Please use Tesseract. Also givem an opton to use cloud OCR. This we should be able to specify in config. 
 
 6. **Processing triggers** - Should processing happen automatically after fetching, or only on explicit command?
+Abhinav : After explicit command 
 
 7. **Additional metadata** - Any other metadata fields you'd like in the processed markdown format beyond what's specified?
+Abhinav : This looks good to me. Do you suggest any additional metadata fields?
 
 8. **Link extraction** - For text messages with links, should we fetch article titles, descriptions, OpenGraph data, or just keep URLs as-is?
+Abhinav : Yes, please do link extraction. Please make changes to the output markdown structure accordingly.
 
-9. **Timezone handling** - Should timestamps in markdown use UTC or local timezone? Should we store both?
+9.  **Timezone handling** - Should timestamps in markdown use UTC or local timezone? Should we store both?
+Abhinav : Use local timezone. 
 
 10. **Notification/reporting** - After sync/process, should we generate summary reports (e.g., "Processed 50 messages, 10 videos transcribed, 5 articles summarized")?
+Abhinav : Yes please. 
 
 ---
+
+Abhinav : Make sure that you are also giving me a plan to update the various documentation. 
+
 
 ## Next Steps
 
