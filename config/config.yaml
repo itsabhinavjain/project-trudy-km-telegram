@@ -6,34 +6,22 @@ telegram:
   timeout: 30
   retry_attempts: 3
 
-# Configure users who will send messages to the bot (OPTIONAL)
-#
-# AUTO-DISCOVERY MODE (Recommended):
-# Leave this section empty ([]) and users will be automatically discovered
-# when they send messages to your bot. Usernames will be generated from
-# their Telegram username or name.
-#
-# MANUAL MODE (Optional):
-# Explicitly configure users here if you want to control usernames.
-# To get chat_id: Send a message to your bot, then visit:
-# https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates
-#
-# For auto-discovery, use:
+# User Discovery Configuration
+# Trudy 2.0 uses AUTO-DISCOVERY ONLY
+# Users are automatically discovered when they send messages to your bot.
+# Usernames are generated from their Telegram username or name.
 users: []
-#
-# For manual configuration, use:
-# users:
-#   - username: "john_doe"  # Used for folder organization
-#     phone: "+1234567890"  # Optional
-#     chat_id: 123456789    # Your actual chat ID
-#   - username: "jane_doe"
-#     phone: "+0987654321"
-#     chat_id: 987654321
 
 storage:
   base_dir: "./data"
-  notes_subdir: "notes"
-  media_subdir: "media"
+  staging_dir: "staging"
+  processed_dir: "processed"
+  media_dir: "media"
+
+  # Staging retention policy
+  staging_retention:
+    policy: "keep_days"  # Options: keep_all, keep_days, delete_after_process
+    days: 7  # Used when policy is "keep_days"
 
 transcription:
   enabled: true
@@ -62,10 +50,72 @@ summarization:
     article_summary: "Provide a concise summary of this article in 2-3 paragraphs."
     youtube_summary: "Summarize this YouTube video, highlighting key takeaways."
 
+# OCR Configuration
+ocr:
+  enabled: true
+  provider: "tesseract"  # Options: tesseract, cloud
+
+  tesseract:
+    languages: ["eng"]  # OCR languages
+    config: "--psm 3"  # Page segmentation mode
+
+  cloud:
+    provider: "google_vision"  # Options: google_vision, azure, aws
+    api_key: "${OCR_API_KEY}"  # Set in .env file if using cloud OCR
+
+# Link Extraction Configuration
+links:
+  enabled: true
+  timeout: 10  # seconds
+  user_agent: "Trudy/2.0 (Personal Knowledge Bot)"
+  extract:
+    title: true
+    description: true
+    opengraph: false  # Disabled per user preference
+    favicon: false    # Disabled per user preference
+
+# Auto-Tagging Configuration
+tagging:
+  enabled: true
+
+  # Rule-based tags (fast, deterministic)
+  rules:
+    - pattern: "screenshot"
+      tag: "#screenshot"
+    - pattern: "meeting"
+      tag: "#meeting"
+    - pattern: "reminder|remind"
+      tag: "#reminder"
+    - pattern: "todo|task"
+      tag: "#task"
+    - pattern: "\\.pdf$"
+      tag: "#document"
+    - pattern: "youtube\\.com|youtu\\.be"
+      tag: "#youtube"
+    - pattern: "image|photo"
+      tag: "#image"
+    - pattern: "video"
+      tag: "#video"
+    - pattern: "audio|voice"
+      tag: "#audio"
+
+  # AI-based tagging (optional, slower)
+  ai_tagging:
+    enabled: false  # Disabled by default
+    provider: "ollama"
+    model: "llama2"
+    max_tags: 5
+    prompt: "Generate 3-5 relevant hashtags for this message. Return only hashtags separated by commas."
+
 processing:
-  max_concurrent: 3  # Max number of parallel processing tasks
+  max_workers: 3  # Number of parallel processing workers
   skip_errors: true  # Continue processing if individual messages fail
-  retry_failed: true  # Retry failed operations
+  retry_failed: true  # Retry failed messages
+  max_retries: 3
+
+  # Progress reporting
+  show_progress: true
+  report_interval: 10  # Update progress every N messages
 
 logging:
   level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
@@ -75,7 +125,13 @@ logging:
   backup_count: 5
 
 markdown:
-  timezone: "UTC"  # Your local timezone (e.g., "America/New_York", "Europe/London")
-  timestamp_format: "HH:MM"
-  include_message_id: false  # Include Telegram message ID as HTML comment
-  wikilink_style: "obsidian"  # Options: obsidian, standard
+  timezone: "America/New_York"  # Local timezone for timestamps
+  timestamp_format: "HH:mm"  # 24-hour format (lowercase 'mm' for minutes)
+  date_format: "YYYY-MM-DD"
+
+  # Wikilink style for media references
+  wikilink_style: "obsidian"  # Options: obsidian, markdown
+
+  # Include additional metadata in processed format
+  include_message_id: false  # Include Telegram message ID in markdown
+  include_edit_history: true  # Track message edits

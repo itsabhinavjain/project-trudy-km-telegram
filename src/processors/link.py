@@ -79,7 +79,8 @@ class LinkProcessor(BaseProcessor):
         if not article_urls:
             return ProcessedResult(
                 markdown_content=f"{message.text}\n\n",
-                metadata={"type": "link", "error": "no_article_urls"},
+                message_type="link",
+                metadata={"error": "no_article_urls"},
             )
 
         # Process first article URL
@@ -125,11 +126,20 @@ class LinkProcessor(BaseProcessor):
 
             markdown_content = "".join(content_parts)
 
+            # Build link metadata for v2.0
+            link_metadata = {
+                "url": url,
+                "title": article.title or "Unknown",
+            }
+            if article.description:
+                link_metadata["description"] = article.description
+
             return ProcessedResult(
                 markdown_content=markdown_content,
+                message_type="link",
                 summary=summary,
+                links=[link_metadata],  # v2.0: Structured link metadata
                 metadata={
-                    "type": "article",
                     "url": url,
                     "title": article.title,
                     "has_summary": summary is not None,
@@ -148,5 +158,6 @@ class LinkProcessor(BaseProcessor):
 
             return ProcessedResult(
                 markdown_content=markdown_content,
-                metadata={"type": "article", "url": url, "error": str(e)},
+                message_type="link",
+                metadata={"url": url, "error": str(e)},
             )

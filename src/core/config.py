@@ -99,35 +99,155 @@ class SummarizationConfig(BaseModel):
     prompts: SummarizationPromptsConfig = Field(default_factory=SummarizationPromptsConfig)
 
 
+class StagingRetentionConfig(BaseModel):
+    """Staging file retention policy configuration."""
+
+    policy: Literal["keep_all", "keep_days", "delete_after_process"] = Field(
+        default="keep_days", description="Retention policy for staging files"
+    )
+    days: int = Field(default=7, description="Days to keep staging files (used with keep_days policy)")
+
+
 class StorageConfig(BaseModel):
     """Storage paths configuration."""
 
     base_dir: str = Field(default="./data", description="Base data directory")
-    notes_subdir: str = Field(default="notes", description="Notes subdirectory name")
-    media_subdir: str = Field(default="media", description="Media subdirectory name")
+    staging_dir: str = Field(default="staging", description="Staging directory name")
+    processed_dir: str = Field(default="processed", description="Processed directory name")
+    media_dir: str = Field(default="media", description="Media directory name")
+    staging_retention: StagingRetentionConfig = Field(
+        default_factory=StagingRetentionConfig, description="Staging retention policy"
+    )
 
     @property
     def base_path(self) -> Path:
         """Get base directory as Path object."""
         return Path(self.base_dir).resolve()
 
+    def get_staging_dir(self, username: str) -> Path:
+        """Get staging directory for a specific user."""
+        return self.base_path / self.staging_dir / username
+
+    def get_processed_dir(self, username: str) -> Path:
+        """Get processed directory for a specific user."""
+        return self.base_path / self.processed_dir / username
+
+    def get_media_dir(self, username: str) -> Path:
+        """Get shared media directory for a specific user."""
+        return self.base_path / self.media_dir / username
+
+    # Keep old methods for backward compatibility during migration
     def get_user_notes_dir(self, username: str) -> Path:
-        """Get notes directory for a specific user."""
-        return self.base_path / "users" / username / self.notes_subdir
+        """Get notes directory for a specific user (deprecated: use get_processed_dir)."""
+        return self.get_processed_dir(username)
 
     def get_user_media_dir(self, username: str) -> Path:
-        """Get media directory for a specific user."""
-        return self.base_path / "users" / username / self.media_subdir
+        """Get media directory for a specific user (deprecated: use get_media_dir)."""
+        return self.get_media_dir(username)
+
+
+class TesseractConfig(BaseModel):
+    """Tesseract OCR configuration."""
+
+    languages: list[str] = Field(default=["eng"], description="OCR languages")
+    config: str = Field(default="--psm 3", description="Tesseract config options")
+
+
+class CloudOCRConfig(BaseModel):
+    """Cloud OCR provider configuration."""
+
+    provider: Literal["google_vision", "azure", "aws"] = Field(
+        default="google_vision", description="Cloud OCR provider"
+    )
+    api_key: str = Field(default="", description="API key for cloud provider")
+
+
+class OCRConfig(BaseModel):
+    """OCR configuration."""
+
+    enabled: bool = Field(default=True, description="Enable OCR")
+    provider: Literal["tesseract", "cloud"] = Field(
+        default="tesseract", description="OCR provider"
+    )
+    tesseract: TesseractConfig = Field(default_factory=TesseractConfig)
+    cloud: CloudOCRConfig = Field(default_factory=CloudOCRConfig)
+
+
+class LinkExtractFields(BaseModel):
+    """Link metadata fields to extract."""
+
+    title: bool = Field(default=True, description="Extract page title")
+    description: bool = Field(default=True, description="Extract meta description")
+    opengraph: bool = Field(default=False, description="Extract OpenGraph metadata")
+    favicon: bool = Field(default=False, description="Extract favicon URL")
+
+
+class LinkExtractionConfig(BaseModel):
+    """Link metadata extraction configuration."""
+
+    enabled: bool = Field(default=True, description="Enable link metadata extraction")
+    timeout: int = Field(default=10, description="HTTP request timeout in seconds")
+    user_agent: str = Field(
+        default="Trudy/2.0 (Personal Knowledge Bot)",
+        description="User agent for HTTP requests"
+    )
+    extract: LinkExtractFields = Field(default_factory=LinkExtractFields)
+
+
+class TaggingRule(BaseModel):
+    """Rule for automatic tag generation."""
+
+    pattern: str = Field(..., description="Regex pattern to match")
+    tag: str = Field(..., description="Tag to apply when pattern matches")
+
+
+class AITaggingConfig(BaseModel):
+    """AI-based tagging configuration."""
+
+    enabled: bool = Field(default=False, description="Enable AI-based tagging")
+    provider: Literal["ollama"] = Field(default="ollama", description="AI provider")
+    model: str = Field(default="llama2", description="Model name")
+    max_tags: int = Field(default=5, description="Maximum tags to generate")
+    prompt: str = Field(
+        default="Generate 3-5 relevant hashtags for this message. Return only hashtags separated by commas.",
+        description="Prompt for AI tagging"
+    )
+
+
+class TaggingConfig(BaseModel):
+    """Auto-tagging configuration."""
+
+    enabled: bool = Field(default=True, description="Enable auto-tagging")
+    rules: list[TaggingRule] = Field(
+        default_factory=lambda: [
+            TaggingRule(pattern="screenshot", tag="#screenshot"),
+            TaggingRule(pattern="meeting", tag="#meeting"),
+            TaggingRule(pattern="reminder|remind", tag="#reminder"),
+            TaggingRule(pattern="todo|task", tag="#task"),
+            TaggingRule(pattern=r"\.pdf$", tag="#document"),
+            TaggingRule(pattern=r"youtube\.com|youtu\.be", tag="#youtube"),
+            TaggingRule(pattern="image|photo", tag="#image"),
+            TaggingRule(pattern="video", tag="#video"),
+            TaggingRule(pattern="audio|voice", tag="#audio"),
+        ],
+        description="Rule-based tagging patterns"
+    )
+    ai_tagging: AITaggingConfig = Field(
+        default_factory=AITaggingConfig, description="AI-based tagging config"
+    )
 
 
 class ProcessingConfig(BaseModel):
     """Processing configuration."""
 
-    max_concurrent: int = Field(default=3, description="Max concurrent processing tasks")
+    max_workers: int = Field(default=3, description="Number of parallel processing workers")
     skip_errors: bool = Field(
         default=True, description="Continue processing on individual errors"
     )
-    retry_failed: bool = Field(default=True, description="Retry failed processing")
+    retry_failed: bool = Field(default=True, description="Retry failed messages")
+    max_retries: int = Field(default=3, description="Maximum retry attempts")
+    show_progress: bool = Field(default=True, description="Show progress bars")
+    report_interval: int = Field(default=10, description="Progress report interval (messages)")
 
 
 class LoggingConfig(BaseModel):
@@ -145,13 +265,17 @@ class LoggingConfig(BaseModel):
 class MarkdownConfig(BaseModel):
     """Markdown formatting configuration."""
 
-    timezone: str = Field(default="UTC", description="Timezone for timestamps")
-    timestamp_format: str = Field(default="HH:MM", description="Time format for headers")
-    include_message_id: bool = Field(
-        default=False, description="Include Telegram message ID in comments"
+    timezone: str = Field(default="America/New_York", description="Timezone for timestamps")
+    timestamp_format: str = Field(default="HH:mm", description="Time format for headers")
+    date_format: str = Field(default="YYYY-MM-DD", description="Date format for files")
+    wikilink_style: Literal["obsidian", "markdown"] = Field(
+        default="obsidian", description="Wikilink style for media references"
     )
-    wikilink_style: Literal["obsidian", "standard"] = Field(
-        default="obsidian", description="Wikilink style"
+    include_message_id: bool = Field(
+        default=False, description="Include Telegram message ID in processed markdown"
+    )
+    include_edit_history: bool = Field(
+        default=True, description="Track message edit history in processed markdown"
     )
 
 
@@ -161,11 +285,14 @@ class Config(BaseModel):
     telegram: TelegramConfig
     users: list[UserConfig] = Field(
         default_factory=list,
-        description="Optional: Pre-configured users. If empty, users are auto-discovered.",
+        description="Auto-discovery mode: Leave empty for automatic user discovery.",
     )
     storage: StorageConfig = Field(default_factory=StorageConfig)
     transcription: TranscriptionConfig = Field(default_factory=TranscriptionConfig)
     summarization: SummarizationConfig = Field(default_factory=SummarizationConfig)
+    ocr: OCRConfig = Field(default_factory=OCRConfig)
+    links: LinkExtractionConfig = Field(default_factory=LinkExtractionConfig)
+    tagging: TaggingConfig = Field(default_factory=TaggingConfig)
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     markdown: MarkdownConfig = Field(default_factory=MarkdownConfig)
@@ -220,12 +347,21 @@ def load_config(config_path: str = "config/config.yaml") -> Config:
     with open(config_file, "r") as f:
         config_data = yaml.safe_load(f)
 
-    # Substitute environment variables in bot_token
+    # Substitute environment variables
+    # Telegram bot token
     if "telegram" in config_data and "bot_token" in config_data["telegram"]:
         bot_token = config_data["telegram"]["bot_token"]
         if bot_token.startswith("${") and bot_token.endswith("}"):
             env_var = bot_token[2:-1]
             config_data["telegram"]["bot_token"] = os.getenv(env_var, "")
+
+    # OCR API key
+    if "ocr" in config_data and "cloud" in config_data["ocr"]:
+        if "api_key" in config_data["ocr"]["cloud"]:
+            api_key = config_data["ocr"]["cloud"]["api_key"]
+            if api_key.startswith("${") and api_key.endswith("}"):
+                env_var = api_key[2:-1]
+                config_data["ocr"]["cloud"]["api_key"] = os.getenv(env_var, "")
 
     # Validate and create config object
     config = Config(**config_data)

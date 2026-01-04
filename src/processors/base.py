@@ -1,29 +1,33 @@
 """Base processor interface for message handling."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from src.telegram.fetcher import Message
 
 
 @dataclass
 class ProcessedResult:
-    """Result of processing a message."""
+    """Result of processing a message.
+
+    Enhanced for v2.0 with additional metadata fields for rich markdown output.
+    """
 
     markdown_content: str
-    media_files: List[Path] = None
+    message_type: str  # text, image, video, audio, voice, youtube, document, link
+    media_files: List[Path] = field(default_factory=list)
     transcript_file: Optional[Path] = None
     summary: Optional[str] = None
-    metadata: dict = None
-
-    def __post_init__(self):
-        """Initialize default values for mutable fields."""
-        if self.media_files is None:
-            self.media_files = []
-        if self.metadata is None:
-            self.metadata = {}
+    tags: List[str] = field(default_factory=list)  # Auto-generated tags
+    links: List[Dict] = field(default_factory=list)  # Extracted link metadata
+    ocr_text: Optional[str] = None  # OCR text from images
+    reply_to: Optional[Dict] = None  # Reply context metadata
+    forwarded_from: Optional[Dict] = None  # Forward context metadata
+    edited_at: Optional[datetime] = None  # Edit timestamp
+    metadata: Dict = field(default_factory=dict)  # Additional processor-specific data
 
 
 class BaseProcessor(ABC):

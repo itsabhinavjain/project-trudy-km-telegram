@@ -1,13 +1,13 @@
 """DateTime utilities for timestamp formatting and timezone handling."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, tzinfo
 from typing import Optional
 
 import pytz
 from dateutil import tz
 
 
-def get_local_timezone(timezone_name: str = "UTC") -> tz.tzinfo:
+def get_local_timezone(timezone_name: str = "UTC") -> tzinfo:
     """Get timezone object from name.
 
     Args:

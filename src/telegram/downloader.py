@@ -1,17 +1,20 @@
 """Media file downloader for Telegram attachments."""
 
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from src.core.logger import get_logger
 from src.telegram.client import TelegramClient
-from src.telegram.fetcher import Message
 from src.utils.file_utils import (
     ensure_directory_exists,
     generate_media_filename,
     get_file_extension_from_mime,
     get_unique_filename,
 )
+
+# Avoid circular import
+if TYPE_CHECKING:
+    from src.telegram.fetcher import Message
 
 logger = get_logger(__name__)
 
@@ -29,7 +32,7 @@ class MediaDownloader:
 
     async def download_media(
         self,
-        message: Message,
+        message: "Message",
         media_dir: Path,
     ) -> Optional[Path]:
         """Download media file from a message.
@@ -102,7 +105,7 @@ class MediaDownloader:
 
     async def download_batch(
         self,
-        messages: list[Message],
+        messages: list["Message"],
         media_dir: Path,
     ) -> dict[int, Optional[Path]]:
         """Download media files from multiple messages.

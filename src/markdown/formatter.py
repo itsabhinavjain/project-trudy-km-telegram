@@ -1,8 +1,13 @@
 """Markdown formatting utilities for wikilinks and text."""
 
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
+
+import pytz
+
+from src.core.config import MarkdownConfig
 
 
 def format_wikilink(
@@ -171,3 +176,112 @@ def format_callout(
         Formatted callout (Obsidian format)
     """
     return f"> [!{callout_type}] {title}\n> {content}\n\n"
+
+
+class MarkdownFormatter:
+    """Markdown formatter with timezone and date/time formatting support."""
+
+    def __init__(self, config: MarkdownConfig):
+        """Initialize formatter.
+
+        Args:
+            config: Markdown configuration
+        """
+        self.config = config
+        self.timezone = pytz.timezone(config.timezone)
+
+    def format_time(self, timestamp: datetime) -> str:
+        """Format timestamp as time string.
+
+        Args:
+            timestamp: Datetime to format
+
+        Returns:
+            Formatted time string (e.g., "14:30")
+        """
+        # Convert to configured timezone
+        if timestamp.tzinfo is None:
+            timestamp = pytz.utc.localize(timestamp)
+
+        local_time = timestamp.astimezone(self.timezone)
+
+        # Format using Python's strftime (convert from config format)
+        # Config uses "HH:mm" but strftime uses "%H:%M"
+        format_str = self.config.timestamp_format.replace("HH", "%H").replace("mm", "%M")
+
+        return local_time.strftime(format_str)
+
+    def format_date(self, timestamp: datetime) -> str:
+        """Format timestamp as date string.
+
+        Args:
+            timestamp: Datetime to format
+
+        Returns:
+            Formatted date string (e.g., "2026-01-04")
+        """
+        # Convert to configured timezone
+        if timestamp.tzinfo is None:
+            timestamp = pytz.utc.localize(timestamp)
+
+        local_time = timestamp.astimezone(self.timezone)
+
+        # Format using Python's strftime (convert from config format)
+        # Config uses "YYYY-MM-DD" but strftime uses "%Y-%m-%d"
+        format_str = self.config.date_format.replace("YYYY", "%Y").replace("MM", "%m").replace("DD", "%d")
+
+        return local_time.strftime(format_str)
+
+    def format_datetime(self, timestamp: datetime) -> str:
+        """Format timestamp as full datetime string.
+
+        Args:
+            timestamp: Datetime to format
+
+        Returns:
+            Formatted datetime string
+        """
+        return f"{self.format_date(timestamp)} {self.format_time(timestamp)}"
+
+    def sanitize_text(self, text: str, max_length: Optional[int] = None) -> str:
+        """Sanitize text for use in headers or previews.
+
+        Args:
+            text: Text to sanitize
+            max_length: Optional maximum length to truncate to
+
+        Returns:
+            Sanitized text
+        """
+        # Replace newlines with spaces
+        sanitized = text.replace("\n", " ").replace("\r", " ")
+
+        # Collapse multiple spaces
+        sanitized = re.sub(r"\s+", " ", sanitized)
+
+        # Strip leading/trailing whitespace
+        sanitized = sanitized.strip()
+
+        # Truncate if needed
+        if max_length and len(sanitized) > max_length:
+            sanitized = sanitized[:max_length].rstrip() + "..."
+
+        return sanitized
+
+    def get_relative_media_path(self, media_path: Path, markdown_file: Path) -> str:
+        """Get relative path from markdown file to media file.
+
+        Args:
+            media_path: Absolute or relative path to media file
+            markdown_file: Path to markdown file
+
+        Returns:
+            Relative path string
+        """
+        try:
+            # Try to calculate relative path
+            relative = Path(media_path).relative_to(markdown_file.parent)
+            return str(relative)
+        except ValueError:
+            # If paths don't share a common base, just use the media path
+            return str(media_path)

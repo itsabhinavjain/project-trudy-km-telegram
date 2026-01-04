@@ -46,5 +46,6 @@ class TextProcessor(BaseProcessor):
 
         return ProcessedResult(
             markdown_content=markdown_content,
-            metadata={"type": "text"},
+            message_type="text",
+            metadata={},
         )

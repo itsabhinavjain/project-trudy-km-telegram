@@ -1,15 +1,18 @@
-"""Message fetcher with incremental sync support."""
+"""Message fetcher with incremental sync support for v2.0 two-phase architecture."""
 
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
 from telegram import Update, Message as TGMessage
 
-from src.core.config import UserConfig
+from src.core.config import Config, UserConfig
 from src.core.logger import get_logger
 from src.core.state import StateManager, UserState
+from src.markdown.staging_writer import StagingWriter
 from src.telegram.client import TelegramClient
+from src.telegram.downloader import MediaDownloader
 from src.utils.datetime_utils import parse_telegram_timestamp
 
 logger = get_logger(__name__)
@@ -133,21 +136,30 @@ class Message:
 
 
 class MessageFetcher:
-    """Fetches messages from Telegram with incremental sync support."""
+    """Fetches messages from Telegram and writes to staging (Phase 1 of two-phase architecture)."""
 
     def __init__(
         self,
         client: TelegramClient,
         state_manager: StateManager,
+        config: Config,
+        staging_writer: StagingWriter,
+        downloader: MediaDownloader,
     ):
         """Initialize message fetcher.
 
         Args:
             client: Telegram client
-            state_manager: State manager for tracking last message ID
+            state_manager: State manager for tracking state
+            config: Configuration object
+            staging_writer: Staging markdown writer
+            downloader: Media downloader
         """
         self.client = client
         self.state_manager = state_manager
+        self.config = config
+        self.staging_writer = staging_writer
+        self.downloader = downloader
 
     async def fetch_new_messages(
         self,
@@ -252,19 +264,21 @@ class MessageFetcher:
     async def fetch_and_discover_users(
         self,
         full_sync: bool = False,
-    ) -> Dict[str, tuple[UserConfig, List[Message]]]:
-        """Fetch messages and auto-discover users who have messaged the bot.
+    ) -> Dict[str, tuple[UserConfig, int]]:
+        """Fetch messages, auto-discover users, and write to staging (v2.0 Phase 1).
 
         This method:
         1. Loads all previously discovered users from state.json
         2. Discovers any new users from current messages
-        3. Returns all users (both existing and newly discovered)
+        3. Downloads media to shared media folder
+        4. Writes messages to staging area
+        5. Updates fetch_state and adds files to pending_files
 
         Args:
             full_sync: If True, fetch all historical messages
 
         Returns:
-            Dictionary mapping username to (UserConfig, messages) tuple
+            Dictionary mapping username to (UserConfig, message_count) tuple
         """
         logger.info("Fetching messages and discovering users...")
 
@@ -347,14 +361,22 @@ class MessageFetcher:
                         newly_discovered_count += 1
                         logger.info(f"Discovered new user: {username} (chat_id: {chat_id})")
 
+                        # Ensure user exists in state
+                        self.state_manager.ensure_user_exists(
+                            username=username,
+                            chat_id=chat_id,
+                            phone=None,
+                            first_seen=parse_telegram_timestamp(tg_msg.date.timestamp()),
+                        )
+
                     # Get user config
                     user_config = discovered_users[chat_id]
                     username = user_config.username
 
                     # Check if we should process this message
                     user_state = self.state_manager.get_user_state(username)
-                    if not full_sync and user_state and user_state.last_message_id:
-                        if tg_msg.message_id <= user_state.last_message_id:
+                    if not full_sync and user_state and user_state.fetch_state.last_message_id:
+                        if tg_msg.message_id <= user_state.fetch_state.last_message_id:
                             continue
 
                     # Convert to our Message format
@@ -365,22 +387,88 @@ class MessageFetcher:
                 if len(updates) < 100:
                     break
 
-            # Build result dictionary - include ALL discovered users (even those with no new messages)
+            # Now process and write messages to staging for each user
             results = {}
             for chat_id, user_config in discovered_users.items():
                 username = user_config.username
                 messages = user_messages.get(username, [])
-                results[username] = (user_config, messages)
+
+                if messages:
+                    await self._process_and_write_to_staging(username, messages)
+
+                results[username] = (user_config, len(messages))
 
             total_users = len(discovered_users)
             total_messages = sum(len(m) for m in user_messages.values())
 
             if newly_discovered_count > 0:
                 logger.info(f"Discovered {newly_discovered_count} new users")
-            logger.info(f"Total users: {total_users}, New messages: {total_messages}")
+            logger.info(f"Total users: {total_users}, New messages fetched: {total_messages}")
 
             return results
 
         except Exception as e:
             logger.error(f"Error during user discovery: {e}")
             raise
+
+    async def _process_and_write_to_staging(
+        self,
+        username: str,
+        messages: List[Message],
+    ) -> None:
+        """Process messages and write to staging area.
+
+        Args:
+            username: Username
+            messages: List of messages to process
+        """
+        if not messages:
+            return
+
+        logger.info(f"Writing {len(messages)} messages to staging for {username}")
+
+        # Get directories
+        staging_dir = self.config.storage.get_staging_dir(username)
+        media_dir = self.config.storage.get_media_dir(username)
+
+        # Track staging files written
+        staging_files_written = set()
+
+        # Process each message
+        for message in messages:
+            try:
+                # Download media if present
+                media_path = None
+                if message.file_id:
+                    media_path = await self.downloader.download_media(message, media_dir)
+                    if media_path:
+                        logger.debug(f"Downloaded media for message {message.message_id}: {media_path.name}")
+
+                # Write to staging
+                staging_file = await self.staging_writer.append_entry(
+                    staging_dir=staging_dir,
+                    message=message,
+                    media_path=media_path,
+                    caption=message.caption,
+                )
+
+                staging_files_written.add(str(staging_file))
+
+            except Exception as e:
+                logger.error(f"Error processing message {message.message_id} for {username}: {e}")
+                continue
+
+        # Update fetch state
+        if messages:
+            last_message_id = max(msg.message_id for msg in messages)
+            self.state_manager.update_fetch_state(
+                username=username,
+                last_message_id=last_message_id,
+                message_count=len(messages),
+            )
+
+        # Add staging files to pending processing
+        for staging_file in staging_files_written:
+            self.state_manager.add_pending_file(username, staging_file)
+
+        logger.info(f"Wrote {len(messages)} messages to {len(staging_files_written)} staging file(s) for {username}")
