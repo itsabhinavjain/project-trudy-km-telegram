@@ -20,11 +20,14 @@
 
 ## Backlog (Potential improvements - Not to be implemented right now)
 
-- Later can add slash commands in the bot to send various kinds of messages 
-  - The slash commands can be used to tag the various type of notes 
-  - The slash commands can be used to ask 
+- Additional telegram features
+  - Later can add slash commands in the bot to send various kinds of messages 
+    - The slash commands can be used to tag the various type of notes 
+    - The slash commands can be used to ask trudy to take actions  
+    - The slash commands can be used to ask trudy to ask for inputs in a specific format and more compreensively 
+  - Trudy can also proactively send messages back to the user on what he has done. This should be ignored while downloadin
 
-- Trudy can also proactively send messages back to the user on what he has done. This should be ignored while downloadin
+- Implement similar features for Whatsapp Business API 
 
 - More scripts can be added to post post process these notes and generate insights. 
   - These insights can be used to generate reports and develop audiences. 
