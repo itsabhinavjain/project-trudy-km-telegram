@@ -154,6 +154,17 @@ class StateManager:
         """Ensure state file directory exists."""
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
 
+    @property
+    def state(self) -> State:
+        """Get current state, loading if necessary.
+
+        Returns:
+            Current state object
+        """
+        if self._state is None:
+            self.load()
+        return self._state
+
     def get_user_state(self, username: str) -> Optional[UserState]:
         """Get state for a specific user.
 

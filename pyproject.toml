@@ -63,7 +63,7 @@ cloud-ocr = [
 ]
 
 [project.scripts]
-trudy = "src.cli.main:app"
+trudy = "src.cli.main:main"
 
 [build-system]
 requires = ["hatchling"]

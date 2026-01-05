@@ -23,7 +23,7 @@ console = Console()
 __version__ = "2.0.0"
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def callback(
     ctx: typer.Context,
     config: Optional[Path] = typer.Option(
@@ -80,23 +80,21 @@ def callback(
 
 
 # Import and register subcommands
+from src.cli.discover import discover_cmd
 from src.cli.fetch import fetch_cmd
 from src.cli.process import process_cmd
+from src.cli.status import info_cmd, status_cmd
 from src.cli.sync import sync_cmd
+from src.cli.utils import clean_cmd
 
 # Register commands
+app.command(name="discover")(discover_cmd)
 app.command(name="fetch")(fetch_cmd)
 app.command(name="process")(process_cmd)
 app.command(name="sync")(sync_cmd)
-
-# TODO: Add remaining commands
-# from src.cli.discover import discover_cmd
-# from src.cli.status import status_cmd, info_cmd
-# from src.cli.utils import clean_cmd
-# app.command(name="discover")(discover_cmd)
-# app.command(name="status")(status_cmd)
-# app.command(name="info")(info_cmd)
-# app.command(name="clean")(clean_cmd)
+app.command(name="status")(status_cmd)
+app.command(name="info")(info_cmd)
+app.command(name="clean")(clean_cmd)
 
 
 def main():

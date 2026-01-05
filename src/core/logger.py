@@ -94,3 +94,18 @@ def get_logger(name: str = "trudy") -> logging.Logger:
         Logger instance
     """
     return logging.getLogger(name)
+
+
+def set_log_level(level: str) -> None:
+    """Set logging level for all handlers.
+
+    Args:
+        level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    """
+    logger = logging.getLogger("trudy")
+    logger.setLevel(getattr(logging, level))
+
+    # Update all console handlers
+    for handler in logger.handlers:
+        if isinstance(handler, RichHandler):
+            handler.setLevel(getattr(logging, level))

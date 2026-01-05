@@ -8,9 +8,18 @@ This file should be ignored by claude code
     - BMAD 
     - Spec Driven etc 
 
-
 - Run /init after you get the first cut of implementation (This will allow the subsequent runs to be faster)
+- Define the specifications in detail - 
+- Giving feedback 
 
+- Define the way of solving the problem 
+  - First try to create everything using CLI commands (as much determinstic as possible) - Use agents to develop this 
+  - In certain areas you can then mention that you want 
+
+- Design principle 
+  - Instead of having an AI agent run non-deterministic flows, use the AI agent to create deterministic tools that either humans or AI agents can then use. 
+  - Later in some aspects get an AI (The relevant one) to do the work 
+  - Later you develop this into a skill with clear specifications (See PRODUCT_ROADMAP.md)
 
 ## Artifacts and Rules 
 
@@ -41,5 +50,5 @@ This file should be ignored by claude code
   - Specify how you want to manage dependency management etc. Use `pyproject.toml` and `uv` for that.
   - Specify what all packages to use for the project.
     - Use `typer` instead of `argparse` or `click` for the cli tool
-  - While creating the cli tool - Add help sections. The help section
+  - While creating the cli tool - Add help sections. The help section should be comprehensive 
   - Specify the flags etc 
