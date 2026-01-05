@@ -80,6 +80,9 @@ class LinkProcessor(BaseProcessor):
             return ProcessedResult(
                 markdown_content=f"{message.text}\n\n",
                 message_type="link",
+                reply_to=message.reply_to,
+                forwarded_from=message.forwarded_from,
+                edited_at=message.edited_at,
                 metadata={"error": "no_article_urls"},
             )
 
@@ -139,6 +142,9 @@ class LinkProcessor(BaseProcessor):
                 message_type="link",
                 summary=summary,
                 links=[link_metadata],  # v2.0: Structured link metadata
+                reply_to=message.reply_to,  # v2.0: Preserve context
+                forwarded_from=message.forwarded_from,  # v2.0: Preserve context
+                edited_at=message.edited_at,  # v2.0: Preserve context
                 metadata={
                     "url": url,
                     "title": article.title,
@@ -159,5 +165,8 @@ class LinkProcessor(BaseProcessor):
             return ProcessedResult(
                 markdown_content=markdown_content,
                 message_type="link",
+                reply_to=message.reply_to,
+                forwarded_from=message.forwarded_from,
+                edited_at=message.edited_at,
                 metadata={"url": url, "error": str(e)},
             )

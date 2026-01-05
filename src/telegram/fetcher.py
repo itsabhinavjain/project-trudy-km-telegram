@@ -50,7 +50,10 @@ def generate_username_from_telegram(tg_user) -> str:
 
 @dataclass
 class Message:
-    """Simplified message representation."""
+    """Simplified message representation.
+
+    Enhanced for v2.0 with reply/forward/edit context tracking.
+    """
 
     message_id: int
     chat_id: int
@@ -64,6 +67,10 @@ class Message:
     file_name: Optional[str] = None
     file_size: Optional[int] = None
     mime_type: Optional[str] = None
+    # v2.0: Message context tracking
+    reply_to: Optional[Dict] = None  # Reply context metadata
+    forwarded_from: Optional[Dict] = None  # Forward context metadata
+    edited_at: Optional[datetime] = None  # Edit timestamp
 
     @classmethod
     def from_telegram_message(cls, tg_msg: TGMessage, username: str) -> "Message":
@@ -119,6 +126,42 @@ class Message:
         elif tg_msg.text and ("http://" in tg_msg.text or "https://" in tg_msg.text):
             message_type = "link"
 
+        # Extract reply context (v2.0)
+        reply_to = None
+        if tg_msg.reply_to_message:
+            reply_msg = tg_msg.reply_to_message
+            # Extract preview (first 100 chars of text or caption)
+            preview_text = reply_msg.text or reply_msg.caption or ""
+            reply_to = {
+                "message_id": reply_msg.message_id,
+                "timestamp": parse_telegram_timestamp(reply_msg.date.timestamp()).isoformat(),
+                "preview": preview_text[:100] if preview_text else "[No text]",
+            }
+
+        # Extract forward context (v2.0)
+        forwarded_from = None
+        if tg_msg.forward_from:
+            # Forwarded from a user
+            forward_user = tg_msg.forward_from
+            forwarded_from = {
+                "user": generate_username_from_telegram(forward_user),
+                "user_id": forward_user.id,
+                "original_date": parse_telegram_timestamp(tg_msg.forward_date.timestamp()).isoformat() if tg_msg.forward_date else None,
+            }
+        elif tg_msg.forward_from_chat:
+            # Forwarded from a channel/group
+            forward_chat = tg_msg.forward_from_chat
+            forwarded_from = {
+                "chat": forward_chat.title or f"Chat {forward_chat.id}",
+                "chat_id": forward_chat.id,
+                "original_date": parse_telegram_timestamp(tg_msg.forward_date.timestamp()).isoformat() if tg_msg.forward_date else None,
+            }
+
+        # Extract edit timestamp (v2.0)
+        edited_at = None
+        if tg_msg.edit_date:
+            edited_at = parse_telegram_timestamp(tg_msg.edit_date.timestamp())
+
         return cls(
             message_id=tg_msg.message_id,
             chat_id=tg_msg.chat_id,
@@ -132,6 +175,9 @@ class Message:
             file_name=file_name,
             file_size=file_size,
             mime_type=mime_type,
+            reply_to=reply_to,
+            forwarded_from=forwarded_from,
+            edited_at=edited_at,
         )
 
 

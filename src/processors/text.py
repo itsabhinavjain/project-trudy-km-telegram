@@ -47,5 +47,8 @@ class TextProcessor(BaseProcessor):
         return ProcessedResult(
             markdown_content=markdown_content,
             message_type="text",
+            reply_to=message.reply_to,  # v2.0: Preserve context
+            forwarded_from=message.forwarded_from,  # v2.0: Preserve context
+            edited_at=message.edited_at,  # v2.0: Preserve context
             metadata={},
         )

@@ -137,6 +137,9 @@ class MediaProcessor(BaseProcessor):
             message_type=message.message_type,
             media_files=[media_file],
             ocr_text=ocr_text,
+            reply_to=message.reply_to,  # v2.0: Preserve context
+            forwarded_from=message.forwarded_from,  # v2.0: Preserve context
+            edited_at=message.edited_at,  # v2.0: Preserve context
             metadata={
                 "filename": media_file.name,
                 "has_caption": message.caption is not None,
